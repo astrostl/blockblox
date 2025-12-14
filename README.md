@@ -30,17 +30,46 @@ Note: `blockblox --version` will show "dev" since go install doesn't include bui
 
 ```
 # First time: extract credentials from Chrome
-./blockblox init
+blockblox init
 
-# Get current screen time limit
-./blockblox get
+# Get current screen time limit and consumption
+blockblox get
 
 # Set screen time limit
-./blockblox set 90        # 90 minutes
-./blockblox set 90m       # 90 minutes
-./blockblox set 4h        # 4 hours
-./blockblox set 4h15m     # 4 hours 15 minutes
-./blockblox set 0         # no limit
+blockblox set 90        # 90 minutes
+blockblox set 90m       # 90 minutes
+blockblox set 4h        # 4 hours
+blockblox set 4h15m     # 4 hours 15 minutes
+blockblox set 0         # no limit
+```
+
+### Examples
+
+**Check status (no limit):**
+```
+$ blockblox get
+User: Alex (@CoolPlayer123)
+Limit: No limit (0 minutes)
+Consumed: 2 hour(s) 30 minute(s) (150 minutes)
+Remaining: Unlimited
+```
+
+**Check status (with limit):**
+```
+$ blockblox get
+User: Alex (@CoolPlayer123)
+Limit: 4 hour(s) (240 minutes)
+Consumed: 2 hour(s) 30 minute(s) (150 minutes)
+Remaining: 1 hour(s) 30 minute(s)
+```
+
+**Set limit (over limit warning):**
+```
+$ blockblox set 2h
+User: Alex (@CoolPlayer123)
+Limit set to: 2 hour(s) (120 minutes)
+Consumed: 2 hour(s) 30 minute(s) (150 minutes)
+⚠️  Over limit by 30 minute(s)
 ```
 
 ## Credentials
