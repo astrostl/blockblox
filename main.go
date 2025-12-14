@@ -23,10 +23,12 @@ import (
 )
 
 const (
-	baseURL         = "https://apis.roblox.com/user-settings-api/v1"
-	settingsURL     = baseURL + "/user-settings/settings-and-options"
-	updateURL       = baseURL + "/user-settings"
-	csrfTokenHeader = "X-Csrf-Token"
+	baseURL            = "https://apis.roblox.com/user-settings-api/v1"
+	settingsURL        = baseURL + "/user-settings/settings-and-options"
+	updateURL          = baseURL + "/user-settings"
+	usersURL           = "https://users.roblox.com/v1/users/authenticated"
+	parentalControlURL = "https://apis.roblox.com/parental-controls-api/v1/parental-controls/get-weekly-screentime"
+	csrfTokenHeader    = "X-Csrf-Token"
 )
 
 var version = "dev"
@@ -46,6 +48,19 @@ type SettingsResponse struct {
 
 type UpdateRequest struct {
 	DailyScreenTimeLimit int `json:"dailyScreenTimeLimit"`
+}
+
+type UserResponse struct {
+	ID int64 `json:"id"`
+}
+
+type DailyScreentime struct {
+	DaysAgo       int `json:"daysAgo"`
+	MinutesPlayed int `json:"minutesPlayed"`
+}
+
+type WeeklyScreentimeResponse struct {
+	DailyScreentimes []DailyScreentime `json:"dailyScreentimes"`
 }
 
 func NewClient() (*Client, error) {
@@ -119,6 +134,67 @@ func (c *Client) GetScreenTime() (int, error) {
 	}
 
 	return settings.DailyScreenTimeLimit.CurrentValue, nil
+}
+
+func (c *Client) GetUserID() (int64, error) {
+	req, err := http.NewRequest("GET", usersURL, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+	}
+
+	var user UserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
+}
+
+func (c *Client) GetTodayConsumption(userID int64) (int, error) {
+	url := fmt.Sprintf("%s?userId=%d", parentalControlURL, userID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return 0, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+	}
+
+	var weekly WeeklyScreentimeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&weekly); err != nil {
+		return 0, err
+	}
+
+	for _, day := range weekly.DailyScreentimes {
+		if day.DaysAgo == 0 {
+			return day.MinutesPlayed, nil
+		}
+	}
+
+	return 0, nil
 }
 
 func (c *Client) SetScreenTime(minutes int) error {
@@ -500,7 +576,20 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error getting screen time: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Screen time limit: %s (%d minutes)\n", formatDuration(minutes), minutes)
+		fmt.Printf("Limit: %s (%d minutes)\n", formatDuration(minutes), minutes)
+
+		userID, err := client.GetUserID()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting user ID: %v\n", err)
+			os.Exit(1)
+		}
+
+		consumed, err := client.GetTodayConsumption(userID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
 
 	case "set":
 		if len(os.Args) < 3 {
