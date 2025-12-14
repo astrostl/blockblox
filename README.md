@@ -35,6 +35,7 @@ Run `blockblox init` again if your Roblox session expires.
 ## Assumptions
 
 - Roblox does not have a proper API for screen time controls. This tool uses an undocumented internal API that may break at any time.
+- Roblox parental controls do not permit setting screen time on behalf of teens, so execution must come from the teen's own account.
 
 ## Build
 
