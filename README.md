@@ -8,13 +8,6 @@ CLI tool for managing Roblox screen time limits.
 
 - macOS (Chrome cookie extraction uses macOS Keychain)
 - Chrome browser with active Roblox login
-- Go 1.21+ (for building)
-
-## Build
-
-```
-make
-```
 
 ## Usage
 
@@ -38,3 +31,11 @@ make
 Credentials are extracted from Chrome and stored in `~/.blockblox.env` with 0600 permissions.
 
 Run `blockblox init` again if your Roblox session expires.
+
+## Build
+
+Requires Go 1.21+.
+
+```
+make
+```
