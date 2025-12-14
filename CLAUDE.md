@@ -12,6 +12,8 @@ Never expose sensitive information in code, configs, or examples:
 
 When exploring Roblox APIs, use curl or Chrome DevTools MCP for testing rather than modifying Go code.
 
+**Reference**: Use https://create.roblox.com/docs as the primary source for API lookups and research. Also check `API.md` for our documented endpoints and behaviors, but don't assume it's definitive—we created it ourselves through exploration, so verify against the actual API when in doubt.
+
 ### Tools Available
 
 - **curl**: For testing known endpoints. Use the bash pattern below for authentication.
@@ -62,6 +64,8 @@ Key APIs:
 - Weekly consumption: `https://apis.roblox.com/parental-controls-api/v1/parental-controls/get-weekly-screentime?userId=USER_ID`
 
 ## Build
+
+Requires Go 1.21+.
 
 ```bash
 make        # build

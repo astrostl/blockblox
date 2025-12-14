@@ -109,11 +109,3 @@ If your Roblox session expires, log out and log back in using Chrome, then run `
 
 - Scheduling support (e.g., different limits for weekdays/weekends)
 - Limit and consumption history graphing
-
-## Build
-
-Requires Go 1.21+.
-
-```
-make
-```
