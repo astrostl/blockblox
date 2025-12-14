@@ -809,7 +809,7 @@ func printUsage() {
 	fmt.Println("  blockblox init          Extract credentials from Chrome")
 	fmt.Println("  blockblox get           Get current screen time limit")
 	fmt.Println("  blockblox set <time>    Set screen time limit (0 = no limit)")
-	fmt.Println("  blockblox temp <time>   Add temporary screen time (works when locked out)")
+	fmt.Println("  blockblox temp <time>   Add temporary screen time (works when screen time exceeded)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  blockblox set 90        Set limit to 90 minutes")

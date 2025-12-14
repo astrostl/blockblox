@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.1] - 2025-12-14
+
+### Fixed
+- Help text wording for `temp` command
+
 ## [v0.2.0] - 2025-12-14
 
 ### Added
