@@ -24,6 +24,8 @@ brew install blockblox
 go install github.com/astrostl/blockblox@latest
 ```
 
+Note: `blockblox --version` will show "dev" since go install doesn't include build-time version injection.
+
 ## Usage
 
 ```
