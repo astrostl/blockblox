@@ -9,6 +9,16 @@ Requires two cookies:
 And one header for POST requests:
 - `X-Csrf-Token` - Obtain by making any POST request without it; token returned in `x-csrf-token` response header
 
+### Getting Cookies from Chrome
+
+1. Log into [roblox.com](https://www.roblox.com) in Chrome
+2. Open DevTools: `Cmd+Option+I` (Mac) or `F12` (Windows/Linux)
+3. Go to **Application** tab
+4. In the left sidebar, expand **Storage > Cookies > https://www.roblox.com**
+5. Find and copy the values for:
+   - `.ROBLOSECURITY`
+   - `RBXEventTrackerV2`
+
 ---
 
 ## User Settings API
