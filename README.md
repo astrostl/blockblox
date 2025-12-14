@@ -83,6 +83,11 @@ If your Roblox session expires, log out and log back in using Chrome, then run `
 - Roblox does not have a proper API for screen time controls. This tool uses an undocumented internal API that may break at any time.
 - Roblox parental controls do not permit setting screen time on behalf of teens, so execution must come from the teen's own account.
 
+## Roadmap
+
+- Scheduling support (e.g., different limits for weekdays/weekends)
+- Limit and consumption history graphing
+
 ## Build
 
 Requires Go 1.21+.
