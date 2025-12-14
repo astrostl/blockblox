@@ -9,6 +9,20 @@ CLI tool for managing Roblox screen time limits.
 - macOS (Chrome cookie extraction uses macOS Keychain)
 - Chrome browser with active Roblox login
 
+## Installation
+
+### Homebrew
+
+```
+brew install astrostl/blockblox/blockblox
+```
+
+### Go
+
+```
+go install github.com/astrostl/blockblox@latest
+```
+
 ## Usage
 
 ```
