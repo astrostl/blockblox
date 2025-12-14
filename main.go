@@ -51,7 +51,9 @@ type UpdateRequest struct {
 }
 
 type UserResponse struct {
-	ID int64 `json:"id"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
 }
 
 type DailyScreentime struct {
@@ -136,31 +138,31 @@ func (c *Client) GetScreenTime() (int, error) {
 	return settings.DailyScreenTimeLimit.CurrentValue, nil
 }
 
-func (c *Client) GetUserID() (int64, error) {
+func (c *Client) GetUser() (*UserResponse, error) {
 	req, err := http.NewRequest("GET", usersURL, nil)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	c.addCookies(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return 0, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+		return nil, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
 	}
 
 	var user UserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return user.ID, nil
+	return &user, nil
 }
 
 func (c *Client) GetTodayConsumption(userID int64) (int, error) {
@@ -571,6 +573,13 @@ func main() {
 
 	switch os.Args[1] {
 	case "get":
+		user, err := client.GetUser()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting user: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("User: %s\n", user.DisplayName)
+
 		minutes, err := client.GetScreenTime()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting screen time: %v\n", err)
@@ -578,13 +587,7 @@ func main() {
 		}
 		fmt.Printf("Limit: %s (%d minutes)\n", formatDuration(minutes), minutes)
 
-		userID, err := client.GetUserID()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error getting user ID: %v\n", err)
-			os.Exit(1)
-		}
-
-		consumed, err := client.GetTodayConsumption(userID)
+		consumed, err := client.GetTodayConsumption(user.ID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
 			os.Exit(1)
@@ -612,6 +615,12 @@ func main() {
 			minutes = 1440 // 24 hours = no limit
 		}
 
+		user, err := client.GetUser()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting user: %v\n", err)
+			os.Exit(1)
+		}
+
 		if err := client.SetScreenTime(minutes); err != nil {
 			fmt.Fprintf(os.Stderr, "Error setting screen time: %v\n", err)
 			os.Exit(1)
@@ -620,7 +629,8 @@ func main() {
 		if minutes >= 1440 {
 			displayMinutes = 0
 		}
-		fmt.Printf("Screen time limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
+		fmt.Printf("User: %s\n", user.DisplayName)
+		fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
