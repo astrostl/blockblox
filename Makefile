@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.
 .PHONY: build clean build-macos-binaries package-macos-binaries generate-macos-checksums update-homebrew-formula release
 
 build:
-	go build -o $(BINARY_NAME)
+	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME)
 
 clean:
 	rm -f $(BINARY_NAME)
@@ -14,9 +14,9 @@ build-macos-binaries:
 	@echo "Building macOS binaries..."
 	@mkdir -p dist
 	@echo "Building darwin-amd64..."
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o dist/$(BINARY_NAME)-darwin-amd64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$(VERSION)" -o dist/$(BINARY_NAME)-darwin-amd64
 	@echo "Building darwin-arm64..."
-	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o dist/$(BINARY_NAME)-darwin-arm64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$(VERSION)" -o dist/$(BINARY_NAME)-darwin-arm64
 	@echo "Done"
 
 package-macos-binaries: build-macos-binaries

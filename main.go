@@ -29,6 +29,8 @@ const (
 	csrfTokenHeader = "X-Csrf-Token"
 )
 
+var version = "dev"
+
 type Client struct {
 	httpClient     *http.Client
 	security       string
@@ -465,8 +467,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Handle init command before loading credentials
-	if os.Args[1] == "init" {
+	// Handle flags that don't require credentials
+	switch os.Args[1] {
+	case "-v", "-version", "--version", "version":
+		fmt.Println(version)
+		return
+	case "-h", "-help", "--help", "help":
+		printUsage()
+		return
+	case "init":
 		if err := runInit(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
