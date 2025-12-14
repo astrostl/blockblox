@@ -1,15 +1,15 @@
 class Blockblox < Formula
   desc "CLI tool for managing Roblox screen time limits"
   homepage "https://github.com/astrostl/blockblox"
-  version "0.1.4"
+  version "0.1.5"
   license "MIT"
 
   if OS.mac? && Hardware::CPU.arm?
-    url "https://github.com/astrostl/blockblox/releases/download/v0.1.4/blockblox-v0.1.4-darwin-arm64.tar.gz"
-    sha256 "d123044554ddb82a185541399089aaf3b32d622f4704c955a8e6cddc0756c386"
+    url "https://github.com/astrostl/blockblox/releases/download/v0.1.5/blockblox-v0.1.5-darwin-arm64.tar.gz"
+    sha256 "947ac41f017111fa0218481f3ec29c14d5c0ea6d886167c2e766d61983f0b3c8"
   elsif OS.mac? && Hardware::CPU.intel?
-    url "https://github.com/astrostl/blockblox/releases/download/v0.1.4/blockblox-v0.1.4-darwin-amd64.tar.gz"
-    sha256 "a7eccd002e6e767d1aff72cb63b8505861698541748facb03d99843cce2e528b"
+    url "https://github.com/astrostl/blockblox/releases/download/v0.1.5/blockblox-v0.1.5-darwin-amd64.tar.gz"
+    sha256 "b4ff2eccc820c0653bff1d5416922e0c7ccf7f4de683887c40177c7ce40f0c02"
   else
     odie "Blockblox is only supported on macOS (requires Keychain for Chrome cookie extraction)."
   end
