@@ -599,6 +599,8 @@ func main() {
 			} else {
 				fmt.Printf("Remaining: %s\n", formatDuration(minutes-consumed))
 			}
+		} else {
+			fmt.Println("Remaining: Unlimited")
 		}
 
 	case "set":
@@ -652,6 +654,8 @@ func main() {
 			} else {
 				fmt.Printf("Remaining: %s\n", formatDuration(displayMinutes-consumed))
 			}
+		} else {
+			fmt.Println("Remaining: Unlimited")
 		}
 
 	default:
