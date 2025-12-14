@@ -29,7 +29,7 @@ Note: `blockblox --version` will show "dev" since go install doesn't include bui
 ## Usage
 
 ```
-# First time: extract credentials from Chrome
+# First time: extract credentials from Chrome (also shows current status)
 blockblox init
 
 # Get current screen time limit and consumption
@@ -41,6 +41,10 @@ blockblox set 90m       # 90 minutes
 blockblox set 4h        # 4 hours
 blockblox set 4h15m     # 4 hours 15 minutes
 blockblox set 0         # no limit
+
+# Add temporary screen time (works even when screen time exceeded)
+blockblox temp 5        # add 5 minutes
+blockblox temp 15m      # add 15 minutes
 ```
 
 ### Examples
@@ -49,7 +53,7 @@ blockblox set 0         # no limit
 ```
 $ blockblox get
 User: Alex (@CoolPlayer123)
-Limit: No limit (0 minutes)
+Limit: No limit
 Consumed: 2 hour(s) 30 minute(s) (150 minutes)
 Remaining: Unlimited
 ```
@@ -63,13 +67,31 @@ Consumed: 2 hour(s) 30 minute(s) (150 minutes)
 Remaining: 1 hour(s) 30 minute(s)
 ```
 
-**Set limit (over limit warning):**
+**Temporary time active (over limit but not blocked):**
 ```
-$ blockblox set 2h
+$ blockblox get
 User: Alex (@CoolPlayer123)
-Limit set to: 2 hour(s) (120 minutes)
+Limit: 1 minute(s)
 Consumed: 2 hour(s) 30 minute(s) (150 minutes)
-⚠️  Over limit by 30 minute(s)
+Status: Temporary time active (over limit by 2 hour(s) 29 minute(s))
+```
+
+**Screen time blocked:**
+```
+$ blockblox get
+User: Alex (@CoolPlayer123)
+
+Screen time limit reached.
+Resets: tomorrow at 1:00 AM
+
+Use 'blockblox temp <minutes>' to add temporary time.
+```
+
+**Add temporary time:**
+```
+$ blockblox temp 15
+User: Alex (@CoolPlayer123)
+Added 15 minute(s) of temporary screen time
 ```
 
 ## Credentials

@@ -1,5 +1,17 @@
 # Roblox APIs
 
+## Moderation Behavior
+
+When a user is banned or has exceeded their screen time limit, most APIs return `403 Forbidden` with `{"errors":[{"code":0,"message":"User is moderated"}]}`.
+
+**APIs that work when moderated:**
+- `usermoderation.roblox.com/v2/not-approved` - Returns restriction status
+- `usermoderation.roblox.com/v1/not-approved` - Returns ban details (bans only)
+- `parental-controls/add-temporary-screentime` - Works even when screen time blocked
+- `users.roblox.com/v1/users/{userId}` - Public API, no auth required
+
+---
+
 ## Authentication
 
 Requires two cookies:
@@ -131,6 +143,8 @@ GET /users/authenticated
 
 Returns the currently authenticated user's info.
 
+**Note:** Fails with "User is moderated" when banned or screen time blocked.
+
 #### Response
 
 ```json
@@ -138,6 +152,28 @@ Returns the currently authenticated user's info.
     "id": 1234567890,
     "name": "Username",
     "displayName": "Display Name"
+}
+```
+
+### Get User by ID (Public)
+
+```
+GET /users/{userId}
+```
+
+Returns user info by ID. **No authentication required.**
+
+#### Response
+
+```json
+{
+    "id": 1234567890,
+    "name": "Username",
+    "displayName": "Display Name",
+    "description": "User bio...",
+    "created": "2020-01-01T00:00:00.000Z",
+    "isBanned": false,
+    "hasVerifiedBadge": false
 }
 ```
 
@@ -227,6 +263,38 @@ Returns the current restriction status for the authenticated user.
 | `startTime` | String | ISO 8601 timestamp when restriction started |
 | `endTime` | String | ISO 8601 timestamp when restriction ends (null if permanent) |
 | `durationSeconds` | Integer | Seconds until restriction ends (null if permanent) |
+
+### Get Ban Details
+
+```
+GET /v1/not-approved
+```
+
+Returns detailed ban information. Only returns data for bans (source=1), not screen time blocks.
+
+#### Response (Banned)
+
+```json
+{
+  "punishedUserId": 1234567890,
+  "messageToUser": "Reason for the ban...",
+  "punishmentTypeDescription": "Ban 3 Days",
+  "beginDate": "2025-12-14T19:33:50.502Z",
+  "endDate": "2025-12-17T19:33:50.502Z",
+  "badUtterances": [
+    {
+      "labelTranslationKey": "Label.AbuseType.Harassment",
+      "utteranceText": "offensive message"
+    }
+  ]
+}
+```
+
+#### Response (Not Banned)
+
+```json
+{}
+```
 
 ---
 

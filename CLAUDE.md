@@ -79,3 +79,7 @@ When the user exceeds their screen time limit, most Roblox APIs return 403 with 
 ## Code Style
 
 Only use shell commands (bash, zsh) or Go code. Do not create helper scripts in Python, JavaScript, or other languages.
+
+## Testing
+
+When testing `blockblox temp`, only add 1 minute at a time to avoid wasting the user's screen time allowance.

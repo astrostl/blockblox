@@ -178,10 +178,15 @@ func (c *Client) GetUser() (*UserResponse, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		// Check if user is moderated - try to get user info via ban details
+		// Check if user is moderated - try to get user info via ban details or HTML scrape
 		if strings.Contains(string(body), "moderated") {
+			// Try ban details first (has user ID for bans)
 			if ban, err := c.GetBanDetails(); err == nil && ban.PunishedUserId > 0 {
 				return c.GetUserByID(ban.PunishedUserId)
+			}
+			// Fall back to HTML scrape (works for screen time blocks)
+			if user, err := c.GetUserFromHTML(); err == nil {
+				return user, nil
 			}
 		}
 		return nil, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
@@ -193,6 +198,58 @@ func (c *Client) GetUser() (*UserResponse, error) {
 	}
 
 	return &user, nil
+}
+
+func (c *Client) GetUserFromHTML() (*UserResponse, error) {
+	req, err := http.NewRequest("GET", "https://www.roblox.com/not-approved", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	html := string(body)
+
+	// Parse data-userid="..." and data-name="..."
+	userIDRe := regexp.MustCompile(`data-userid="(\d+)"`)
+	nameRe := regexp.MustCompile(`data-name="([^"]+)"`)
+
+	userIDMatch := userIDRe.FindStringSubmatch(html)
+	nameMatch := nameRe.FindStringSubmatch(html)
+
+	if userIDMatch == nil || nameMatch == nil {
+		return nil, fmt.Errorf("could not parse user info from HTML")
+	}
+
+	userID, _ := strconv.ParseInt(userIDMatch[1], 10, 64)
+	name := nameMatch[1]
+
+	// Get display name from public API
+	if fullUser, err := c.GetUserByID(userID); err == nil {
+		return fullUser, nil
+	}
+
+	// Fall back to just what we scraped
+	return &UserResponse{
+		ID:          userID,
+		Name:        name,
+		DisplayName: name,
+	}, nil
 }
 
 func (c *Client) GetUserByID(userID int64) (*UserResponse, error) {
@@ -422,6 +479,25 @@ func formatTimeUntil(isoDate string) string {
 		parts = append(parts, fmt.Sprintf("%d minute(s)", mins))
 	}
 	return strings.Join(parts, " ")
+}
+
+func formatResetTime(isoDate string) string {
+	t, err := time.Parse(time.RFC3339, isoDate)
+	if err != nil {
+		return isoDate
+	}
+	local := t.Local()
+	now := time.Now()
+
+	// Check if it's today or tomorrow
+	if local.YearDay() == now.YearDay() && local.Year() == now.Year() {
+		return local.Format("today at 3:04 PM")
+	}
+	tomorrow := now.AddDate(0, 0, 1)
+	if local.YearDay() == tomorrow.YearDay() && local.Year() == tomorrow.Year() {
+		return local.Format("tomorrow at 3:04 PM")
+	}
+	return local.Format("Mon Jan 2 at 3:04 PM")
 }
 
 func (c *Client) CheckRestrictionError() string {
@@ -716,7 +792,14 @@ func runInit() error {
 	}
 
 	fmt.Println("Found credentials!")
-	return saveCredentials(security, browserTracker)
+	if err := saveCredentials(security, browserTracker); err != nil {
+		return err
+	}
+
+	// Set env vars so subsequent get works
+	os.Setenv("ROBLOX_SECURITY", security)
+	os.Setenv("ROBLOX_BROWSER_TRACKER", browserTracker)
+	return nil
 }
 
 func printUsage() {
@@ -759,7 +842,8 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
-		return
+		fmt.Println()
+		os.Args[1] = "get" // Fall through to get
 	}
 
 	// Load credentials for other commands
@@ -785,12 +869,19 @@ func main() {
 		}
 		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 
-		// Check for ban before trying other APIs
-		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
-			if ban, err := client.GetBanDetails(); err == nil {
-				fmt.Printf("\n%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+		// Check for restrictions before trying other APIs
+		if restriction, _ := client.GetRestriction(); restriction != nil {
+			switch restriction.Source {
+			case 1: // Ban
+				if ban, err := client.GetBanDetails(); err == nil {
+					fmt.Printf("\n%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+				}
+				os.Exit(1)
+			case 2: // Screen time
+				fmt.Printf("\nScreen time limit reached.\nResets: %s\n", formatResetTime(restriction.EndTime))
+				fmt.Println("\nUse 'blockblox temp <minutes>' to add temporary time.")
+				os.Exit(1)
 			}
-			os.Exit(1)
 		}
 
 		minutes, err := client.GetScreenTime()
@@ -798,17 +889,25 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error getting screen time: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Limit: %s (%d minutes)\n", formatDuration(minutes), minutes)
+		if minutes >= 60 {
+			fmt.Printf("Limit: %s (%d minutes)\n", formatDuration(minutes), minutes)
+		} else {
+			fmt.Printf("Limit: %s\n", formatDuration(minutes))
+		}
 
 		consumed, err := client.GetTodayConsumption(user.ID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		if consumed >= 60 {
+			fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		} else {
+			fmt.Printf("Consumed: %s\n", formatDuration(consumed))
+		}
 		if minutes > 0 && minutes < 1440 {
 			if consumed > minutes {
-				fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-minutes))
+				fmt.Printf("Status: Temporary time active (over limit by %s)\n", formatDuration(consumed-minutes))
 			} else {
 				fmt.Printf("Remaining: %s\n", formatDuration(minutes-consumed))
 			}
@@ -847,13 +946,20 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Check for ban before trying to set
-		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
-			fmt.Printf("User: %s (@%s)\n\n", user.DisplayName, user.Name)
-			if ban, err := client.GetBanDetails(); err == nil {
-				fmt.Fprintf(os.Stderr, "%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+		// Check for restrictions before trying to set
+		if restriction, _ := client.GetRestriction(); restriction != nil {
+			fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
+			switch restriction.Source {
+			case 1: // Ban
+				if ban, err := client.GetBanDetails(); err == nil {
+					fmt.Fprintf(os.Stderr, "\n%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+				}
+				os.Exit(1)
+			case 2: // Screen time
+				fmt.Fprintf(os.Stderr, "\nScreen time limit reached.\nResets: %s\n", formatResetTime(restriction.EndTime))
+				fmt.Fprintln(os.Stderr, "\nUse 'blockblox temp <minutes>' to add temporary time.")
+				os.Exit(1)
 			}
-			os.Exit(1)
 		}
 
 		if err := client.SetScreenTime(minutes); err != nil {
@@ -872,11 +978,19 @@ func main() {
 		}
 
 		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
-		fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
-		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		if minutes >= 60 {
+			fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
+		} else {
+			fmt.Printf("Limit set to: %s\n", formatDuration(minutes))
+		}
+		if consumed >= 60 {
+			fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		} else {
+			fmt.Printf("Consumed: %s\n", formatDuration(consumed))
+		}
 		if displayMinutes > 0 {
 			if consumed > displayMinutes {
-				fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-displayMinutes))
+				fmt.Printf("Status: Temporary time active (over limit by %s)\n", formatDuration(consumed-displayMinutes))
 			} else {
 				fmt.Printf("Remaining: %s\n", formatDuration(displayMinutes-consumed))
 			}
@@ -902,7 +1016,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Check for ban (but not screen time block, since temp is meant to fix that)
+		// Check for ban (temp doesn't work for bans)
 		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
 			if ban, err := client.GetBanDetails(); err == nil {
 				if user, err := client.GetUserByID(ban.PunishedUserId); err == nil {
@@ -913,6 +1027,11 @@ func main() {
 				fmt.Fprintln(os.Stderr, "Account is banned. Open roblox.com in a browser for details.")
 			}
 			os.Exit(1)
+		}
+
+		// Show user info (works via HTML scrape even when blocked)
+		if user, err := client.GetUser(); err == nil {
+			fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 		}
 
 		if err := client.AddTemporaryScreenTime(minutes); err != nil {

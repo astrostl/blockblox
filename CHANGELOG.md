@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.2.0] - 2025-12-14
+
+### Added
+- `temp` command to add temporary screen time (works even when screen time exceeded)
+- Ban detection with reason and time remaining
+- Screen time block detection with reset time
+- `init` now automatically runs `get` after extracting credentials
+
+### Changed
+- User info now displays even when banned or screen time blocked
+- "Temporary time active" status shown when over limit but not blocked
+- Raw minutes only shown when duration includes hours or days
+
+### Fixed
+- Graceful handling of moderated accounts instead of raw API errors
+
 ## [v0.1.5] - 2025-12-14
 
 ### Added
