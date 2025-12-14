@@ -32,6 +32,10 @@ Credentials are extracted from Chrome and stored in `~/.blockblox.env` with 0600
 
 Run `blockblox init` again if your Roblox session expires.
 
+## Assumptions
+
+- Roblox does not have a proper API for screen time controls. This tool uses an undocumented internal API that may break at any time.
+
 ## Build
 
 Requires Go 1.21+.
