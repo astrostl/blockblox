@@ -593,8 +593,12 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
-		if minutes > 0 && minutes < 1440 && consumed > minutes {
-			fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-minutes))
+		if minutes > 0 && minutes < 1440 {
+			if consumed > minutes {
+				fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-minutes))
+			} else {
+				fmt.Printf("Remaining: %s\n", formatDuration(minutes-consumed))
+			}
 		}
 
 	case "set":
@@ -642,8 +646,12 @@ func main() {
 		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 		fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
 		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
-		if displayMinutes > 0 && consumed > displayMinutes {
-			fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-displayMinutes))
+		if displayMinutes > 0 {
+			if consumed > displayMinutes {
+				fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-displayMinutes))
+			} else {
+				fmt.Printf("Remaining: %s\n", formatDuration(displayMinutes-consumed))
+			}
 		}
 
 	default:
