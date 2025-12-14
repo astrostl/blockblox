@@ -14,7 +14,8 @@ CLI tool for managing Roblox screen time limits.
 ### Homebrew
 
 ```
-brew install astrostl/blockblox/blockblox
+brew tap astrostl/blockblox https://github.com/astrostl/blockblox
+brew install blockblox
 ```
 
 ### Go
