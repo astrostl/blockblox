@@ -92,6 +92,7 @@ Use 'blockblox temp <minutes>' to add temporary time.
 $ blockblox temp 15
 User: Alex (@CoolPlayer123)
 Added 15 minute(s) of temporary screen time
+Note: There is no way to check remaining temp time. It expires silently.
 ```
 
 ## Credentials

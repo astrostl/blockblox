@@ -12,12 +12,12 @@ Never expose sensitive information in code, configs, or examples:
 
 When exploring Roblox APIs, use curl or Chrome DevTools MCP for testing rather than modifying Go code.
 
-**Reference**: Use https://create.roblox.com/docs as the primary source for API lookups and research. Also check `API.md` for our documented endpoints and behaviors, but don't assume it's definitive—we created it ourselves through exploration, so verify against the actual API when in doubt.
+**Reference**: Use https://create.roblox.com/docs as the primary source for API lookups and research. Also check https://robloxapi.github.io/ref/ for community-documented APIs. Review `API.md` for our documented endpoints and behaviors, but don't assume it's definitive—we created it ourselves through exploration, so verify against the actual API when in doubt.
 
 ### Tools Available
 
 - **curl**: For testing known endpoints. Use the bash pattern below for authentication.
-- **Chrome DevTools MCP**: Installed and configured in `.mcp.json`. Can capture network requests, interact with pages, and discover new endpoints.
+- **Chrome DevTools MCP**: Installed and configured in `.mcp.json`. Can capture network requests, interact with pages, and discover new endpoints. Docs: https://github.com/ChromeDevTools/chrome-devtools-mcp
 
 **Important**: Always ask before using Chrome DevTools MCP, as it interacts with the user's browser.
 
@@ -31,6 +31,8 @@ When exploring Roblox APIs, use curl or Chrome DevTools MCP for testing rather t
 | Quick API validation | curl |
 
 ### Discovering New Endpoints with Chrome DevTools MCP
+
+**Important**: Always enable "Preserve log" in Chrome DevTools Network tab before capturing requests. This prevents logs from being cleared on page navigation.
 
 Use `mcp__chrome-devtools__list_network_requests` and `mcp__chrome-devtools__get_network_request` to capture API calls made by the Roblox UI.
 

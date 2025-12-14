@@ -1040,6 +1040,7 @@ func main() {
 		}
 
 		fmt.Printf("Added %s of temporary screen time\n", formatDuration(minutes))
+		fmt.Println("Note: There is no way to check remaining temp time. It expires silently.")
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])

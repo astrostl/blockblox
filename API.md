@@ -214,7 +214,9 @@ Adds temporary screen time. **Works even when the user is locked out due to exce
 
 #### Response
 
-- `204 No Content` on success
+- `204 No Content` on success (no response body)
+
+**Note:** There is no known GET endpoint to query remaining temporary screen time. The temp time is tracked server-side and only affects whether the user gets blocked.
 
 #### Rate Limits
 
