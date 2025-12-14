@@ -76,7 +76,7 @@ Consumed: 2 hour(s) 30 minute(s) (150 minutes)
 
 Credentials are extracted from Chrome and stored in `~/.blockblox.env` with 0600 permissions.
 
-Run `blockblox init` again if your Roblox session expires.
+If your Roblox session expires, log out and log back in using Chrome, then run `blockblox init` again.
 
 ## Assumptions
 
