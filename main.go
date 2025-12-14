@@ -578,7 +578,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error getting user: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("User: %s\n", user.DisplayName)
+		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 
 		minutes, err := client.GetScreenTime()
 		if err != nil {
@@ -629,7 +629,7 @@ func main() {
 		if minutes >= 1440 {
 			displayMinutes = 0
 		}
-		fmt.Printf("User: %s\n", user.DisplayName)
+		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 		fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
 
 	default:
