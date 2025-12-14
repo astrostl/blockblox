@@ -593,6 +593,9 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		if minutes > 0 && minutes < 1440 && consumed > minutes {
+			fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-minutes))
+		}
 
 	case "set":
 		if len(os.Args) < 3 {
@@ -629,8 +632,19 @@ func main() {
 		if minutes >= 1440 {
 			displayMinutes = 0
 		}
+
+		consumed, err := client.GetTodayConsumption(user.ID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting consumption: %v\n", err)
+			os.Exit(1)
+		}
+
 		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
 		fmt.Printf("Limit set to: %s (%d minutes)\n", formatDuration(minutes), displayMinutes)
+		fmt.Printf("Consumed: %s (%d minutes)\n", formatDuration(consumed), consumed)
+		if displayMinutes > 0 && consumed > displayMinutes {
+			fmt.Printf("⚠️  Over limit by %s\n", formatDuration(consumed-displayMinutes))
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
