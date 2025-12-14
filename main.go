@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/pbkdf2"
@@ -27,7 +28,11 @@ const (
 	settingsURL        = baseURL + "/user-settings/settings-and-options"
 	updateURL          = baseURL + "/user-settings"
 	usersURL           = "https://users.roblox.com/v1/users/authenticated"
+	userByIDURL        = "https://users.roblox.com/v1/users/%d"
 	parentalControlURL = "https://apis.roblox.com/parental-controls-api/v1/parental-controls/get-weekly-screentime"
+	tempScreenTimeURL  = "https://apis.roblox.com/parental-controls-api/v1/parental-controls/add-temporary-screentime"
+	restrictionURL     = "https://usermoderation.roblox.com/v2/not-approved"
+	banDetailsURL      = "https://usermoderation.roblox.com/v1/not-approved"
 	csrfTokenHeader    = "X-Csrf-Token"
 )
 
@@ -63,6 +68,25 @@ type DailyScreentime struct {
 
 type WeeklyScreentimeResponse struct {
 	DailyScreentimes []DailyScreentime `json:"dailyScreentimes"`
+}
+
+type Restriction struct {
+	Source           int    `json:"source"`
+	ModerationStatus int    `json:"moderationStatus"`
+	StartTime        string `json:"startTime"`
+	EndTime          string `json:"endTime"`
+	DurationSeconds  int    `json:"durationSeconds"`
+}
+
+type RestrictionResponse struct {
+	Restriction *Restriction `json:"restriction"`
+}
+
+type BanDetails struct {
+	PunishedUserId            int64  `json:"punishedUserId"`
+	MessageToUser             string `json:"messageToUser"`
+	PunishmentTypeDescription string `json:"punishmentTypeDescription"`
+	EndDate                   string `json:"endDate"`
 }
 
 func NewClient() (*Client, error) {
@@ -145,6 +169,38 @@ func (c *Client) GetUser() (*UserResponse, error) {
 	}
 
 	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		// Check if user is moderated - try to get user info via ban details
+		if strings.Contains(string(body), "moderated") {
+			if ban, err := c.GetBanDetails(); err == nil && ban.PunishedUserId > 0 {
+				return c.GetUserByID(ban.PunishedUserId)
+			}
+		}
+		return nil, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+	}
+
+	var user UserResponse
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func (c *Client) GetUserByID(userID int64) (*UserResponse, error) {
+	url := fmt.Sprintf(userByIDURL, userID)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -242,6 +298,148 @@ func (c *Client) SetScreenTime(minutes int) error {
 	}
 
 	return nil
+}
+
+func (c *Client) AddTemporaryScreenTime(minutes int) error {
+	if c.csrfToken == "" {
+		if err := c.fetchCSRFToken(); err != nil {
+			return fmt.Errorf("failed to fetch CSRF token: %w", err)
+		}
+	}
+
+	payload := map[string]int{"minutes": minutes}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", tempScreenTimeURL, bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+
+	c.addCookies(req)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(csrfTokenHeader, c.csrfToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Handle CSRF token expiration
+	if resp.StatusCode == http.StatusForbidden {
+		newToken := resp.Header.Get(csrfTokenHeader)
+		if newToken != "" {
+			c.csrfToken = newToken
+			return c.AddTemporaryScreenTime(minutes)
+		}
+	}
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API error: %s - %s", resp.Status, string(respBody))
+	}
+
+	return nil
+}
+
+func (c *Client) GetRestriction() (*Restriction, error) {
+	req, err := http.NewRequest("GET", restrictionURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error: %s - %s", resp.Status, string(body))
+	}
+
+	var result RestrictionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return result.Restriction, nil
+}
+
+func (c *Client) GetBanDetails() (*BanDetails, error) {
+	req, err := http.NewRequest("GET", banDetailsURL, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	c.addCookies(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status %d", resp.StatusCode)
+	}
+
+	var result BanDetails
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
+
+func formatTimeUntil(isoDate string) string {
+	endTime, err := time.Parse(time.RFC3339, isoDate)
+	if err != nil {
+		return isoDate
+	}
+	duration := time.Until(endTime)
+	if duration < 0 {
+		return "expired"
+	}
+	days := int(duration.Hours()) / 24
+	hours := int(duration.Hours()) % 24
+	mins := int(duration.Minutes()) % 60
+
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%d day(s)", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%d hour(s)", hours))
+	}
+	if mins > 0 || len(parts) == 0 {
+		parts = append(parts, fmt.Sprintf("%d minute(s)", mins))
+	}
+	return strings.Join(parts, " ")
+}
+
+func (c *Client) CheckRestrictionError() string {
+	restriction, err := c.GetRestriction()
+	if err != nil || restriction == nil {
+		return ""
+	}
+	switch restriction.Source {
+	case 1:
+		if ban, err := c.GetBanDetails(); err == nil {
+			return fmt.Sprintf("%s\nReason: %s\nEnds in: %s", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+		}
+		return "Account may be banned. Open roblox.com in a browser to confirm."
+	case 2:
+		return "Screen time limit reached. Use 'blockblox temp <minutes>' to add temporary time."
+	default:
+		return ""
+	}
 }
 
 func formatDuration(minutes int) string {
@@ -528,6 +726,7 @@ func printUsage() {
 	fmt.Println("  blockblox init          Extract credentials from Chrome")
 	fmt.Println("  blockblox get           Get current screen time limit")
 	fmt.Println("  blockblox set <time>    Set screen time limit (0 = no limit)")
+	fmt.Println("  blockblox temp <time>   Add temporary screen time (works when locked out)")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  blockblox set 90        Set limit to 90 minutes")
@@ -535,6 +734,8 @@ func printUsage() {
 	fmt.Println("  blockblox set 4h        Set limit to 4 hours")
 	fmt.Println("  blockblox set 4h15m     Set limit to 4 hours 15 minutes")
 	fmt.Println("  blockblox set 0         Remove limit")
+	fmt.Println("  blockblox temp 5        Add 5 minutes temporarily")
+	fmt.Println("  blockblox temp 15m      Add 15 minutes temporarily")
 	fmt.Println()
 	fmt.Println("Credentials stored in ~/.blockblox.env")
 }
@@ -575,10 +776,22 @@ func main() {
 	case "get":
 		user, err := client.GetUser()
 		if err != nil {
+			if msg := client.CheckRestrictionError(); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+				os.Exit(1)
+			}
 			fmt.Fprintf(os.Stderr, "Error getting user: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Printf("User: %s (@%s)\n", user.DisplayName, user.Name)
+
+		// Check for ban before trying other APIs
+		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
+			if ban, err := client.GetBanDetails(); err == nil {
+				fmt.Printf("\n%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+			}
+			os.Exit(1)
+		}
 
 		minutes, err := client.GetScreenTime()
 		if err != nil {
@@ -626,7 +839,20 @@ func main() {
 
 		user, err := client.GetUser()
 		if err != nil {
+			if msg := client.CheckRestrictionError(); msg != "" {
+				fmt.Fprintln(os.Stderr, msg)
+				os.Exit(1)
+			}
 			fmt.Fprintf(os.Stderr, "Error getting user: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Check for ban before trying to set
+		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
+			fmt.Printf("User: %s (@%s)\n\n", user.DisplayName, user.Name)
+			if ban, err := client.GetBanDetails(); err == nil {
+				fmt.Fprintf(os.Stderr, "%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+			}
 			os.Exit(1)
 		}
 
@@ -657,6 +883,44 @@ func main() {
 		} else {
 			fmt.Println("Remaining: Unlimited")
 		}
+
+	case "temp":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "Error: missing time argument")
+			fmt.Fprintln(os.Stderr, "Usage: blockblox temp <time>")
+			os.Exit(1)
+		}
+
+		minutes, err := parseDuration(os.Args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		if minutes <= 0 {
+			fmt.Fprintln(os.Stderr, "Error: duration must be positive")
+			os.Exit(1)
+		}
+
+		// Check for ban (but not screen time block, since temp is meant to fix that)
+		if restriction, _ := client.GetRestriction(); restriction != nil && restriction.Source == 1 {
+			if ban, err := client.GetBanDetails(); err == nil {
+				if user, err := client.GetUserByID(ban.PunishedUserId); err == nil {
+					fmt.Fprintf(os.Stderr, "User: %s (@%s)\n\n", user.DisplayName, user.Name)
+				}
+				fmt.Fprintf(os.Stderr, "%s\nReason: %s\nEnds in: %s\n", ban.PunishmentTypeDescription, ban.MessageToUser, formatTimeUntil(ban.EndDate))
+			} else {
+				fmt.Fprintln(os.Stderr, "Account is banned. Open roblox.com in a browser for details.")
+			}
+			os.Exit(1)
+		}
+
+		if err := client.AddTemporaryScreenTime(minutes); err != nil {
+			fmt.Fprintf(os.Stderr, "Error adding temporary screen time: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Added %s of temporary screen time\n", formatDuration(minutes))
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])

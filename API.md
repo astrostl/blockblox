@@ -153,7 +153,84 @@ Base URL: `https://apis.roblox.com/parental-controls-api/v1`
 GET /parental-controls/get-weekly-screentime?userId={userId}
 ```
 
-Returns screen time consumption for the past 7 days.
+Returns screen time consumption for the past 7 days. Always returns exactly 7 entries (days 0-6).
+
+### Add Temporary Screen Time
+
+```
+POST /parental-controls/add-temporary-screentime
+```
+
+Adds temporary screen time. **Works even when the user is locked out due to exceeding their limit.**
+
+#### Request Headers
+
+| Header | Description |
+|--------|-------------|
+| `X-Csrf-Token` | CSRF token (obtain from any failed POST request's response header) |
+| `Content-Type` | `application/json` |
+
+#### Request Body
+
+```json
+{"minutes": 5}
+```
+
+#### Response
+
+- `204 No Content` on success
+
+#### Rate Limits
+
+| Header | Value |
+|--------|-------|
+| `X-Ratelimit-Limit` | 5 requests per 60 seconds |
+
+---
+
+## User Moderation API
+
+Base URL: `https://usermoderation.roblox.com`
+
+### Get Restriction Status
+
+```
+GET /v2/not-approved
+```
+
+Returns the current restriction status for the authenticated user.
+
+#### Response (No Restriction)
+
+```json
+{"restriction": null}
+```
+
+#### Response (Screen Time Blocked)
+
+```json
+{
+  "restriction": {
+    "source": 2,
+    "moderationStatus": 2,
+    "startTime": "2025-12-14T21:52:17.626Z",
+    "endTime": "2025-12-15T07:00:00Z",
+    "durationSeconds": 32862
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | Integer | Restriction source (1 = ban, 2 = screen time) |
+| `moderationStatus` | Integer | Status code (2 = blocked) |
+| `startTime` | String | ISO 8601 timestamp when restriction started |
+| `endTime` | String | ISO 8601 timestamp when restriction ends (null if permanent) |
+| `durationSeconds` | Integer | Seconds until restriction ends (null if permanent) |
+
+---
+
+## Parental Controls API (continued)
 
 #### Query Parameters
 
