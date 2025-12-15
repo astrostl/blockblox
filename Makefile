@@ -1,7 +1,7 @@
 BINARY_NAME=blockblox
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "v0.1.0")
 
-.PHONY: build clean build-macos-binaries package-macos-binaries generate-macos-checksums update-homebrew-formula release
+.PHONY: build clean build-macos-binaries package-macos-binaries update-homebrew-formula release
 
 build:
 	go build -ldflags "-X main.version=$(VERSION)" -o $(BINARY_NAME)
@@ -25,12 +25,7 @@ package-macos-binaries: build-macos-binaries
 	@cd dist && tar -czf $(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
 	@echo "Done"
 
-generate-macos-checksums: package-macos-binaries
-	@echo "Generating checksums..."
-	@cd dist && shasum -a 256 $(BINARY_NAME)-$(VERSION)-darwin-*.tar.gz > checksums.txt
-	@cat dist/checksums.txt
-
-update-homebrew-formula: generate-macos-checksums
+update-homebrew-formula: package-macos-binaries
 	@echo "Updating Homebrew formula..."
 	@AMD64_SHA=$$(cd dist && shasum -a 256 $(BINARY_NAME)-$(VERSION)-darwin-amd64.tar.gz | cut -d' ' -f1); \
 	ARM64_SHA=$$(cd dist && shasum -a 256 $(BINARY_NAME)-$(VERSION)-darwin-arm64.tar.gz | cut -d' ' -f1); \
